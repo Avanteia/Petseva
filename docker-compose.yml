@@ -1,0 +1,19 @@
+# Optional: use real Postgres + Redis containers instead of the embedded Postgres.
+# Then set in apps/api/.env:  DB_EMBEDDED=false  and  DATABASE_URL=postgresql://rms:rms@localhost:5432/rms
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rms
+      POSTGRES_PASSWORD: rms
+      POSTGRES_DB: rms
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+volumes:
+  pgdata:
