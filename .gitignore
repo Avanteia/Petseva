@@ -3,6 +3,7 @@ dist
 build
 .env
 *.log
+*.tsbuildinfo
 .pgdata
 apps/api/.pgdata
 apps/pos/dev-dist

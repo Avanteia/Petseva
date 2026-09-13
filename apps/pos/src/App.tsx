@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toast } from './components/ui';
 import Layout from './components/Layout';
 import { bootstrap, disconnectSocket, useSync } from './lib/sync';
+import AdminInsights from './pages/admin/AdminInsights';
 import AdminMenu from './pages/admin/AdminMenu';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminTables from './pages/admin/AdminTables';
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/orders" element={<OrdersList />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/sync" element={<SyncPage />} />
+            <Route path="/admin/insights" element={<AdminInsights />} />
             <Route path="/admin/menu" element={<AdminMenu />} />
             <Route path="/admin/tables" element={<AdminTables />} />
             <Route path="/admin/settings" element={<AdminSettings />} />

@@ -3,3 +3,4 @@ export * from './billing';
 export * from './types';
 export * from './escpos';
 export * from './receipt';
+export * from './stats';

@@ -1,6 +1,7 @@
 import { Controller, Get, Inject, Injectable, Module, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { and, eq, gte, lte, sql } from 'drizzle-orm';
+import { DatedPoint } from '@rms/shared';
 import { Actor, CurrentUser, RequirePerms } from '../common/auth';
 import { AuditService } from '../common/audit.service';
 import { DB } from '../common/db.module';
@@ -61,6 +62,18 @@ export class ReportsService {
       cancelledOrders: Number(cancelled.count),
     };
   }
+
+  /** Daily total sales (paid bills), one point per calendar day with at least one bill — used by AI insights for weekday-baseline comparisons and trend detection. */
+  async dailySalesSeries(outletId: string, from: Date, to: Date): Promise<DatedPoint[]> {
+    const dayExpr = sql<string>`to_char(${bills.paidAt} at time zone 'Asia/Kolkata', 'YYYY-MM-DD')`;
+    const rows = await this.db
+      .select({ date: dayExpr, value: sql<number>`coalesce(sum(${bills.grandTotal}),0)` })
+      .from(bills)
+      .where(and(eq(bills.outletId, outletId), eq(bills.status, 'PAID'), gte(bills.paidAt, from), lte(bills.paidAt, to)))
+      .groupBy(dayExpr)
+      .orderBy(dayExpr);
+    return rows.map((r) => ({ date: r.date, value: Number(r.value) }));
+  }
 }
 
 function dayRange(q: any, tz = 'Asia/Kolkata') {
@@ -92,5 +105,5 @@ export class ReportsController {
   }
 }
 
-@Module({ controllers: [ReportsController], providers: [ReportsService] })
+@Module({ controllers: [ReportsController], providers: [ReportsService], exports: [ReportsService] })
 export class ReportsModule {}

@@ -1,11 +1,13 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard, Public } from './common/auth';
 import { CommonModule } from './common/common.module';
 import { DbModule } from './common/db.module';
 import { CustomersModule } from './customers/customers.module';
 import { FloorModule } from './floor/floor.module';
+import { InsightsModule } from './insights/insights.module';
 import { MenuModule } from './menu/menu.module';
 import { OrdersModule } from './orders/orders.module';
 import { OutletsModule } from './outlets/outlets.module';
@@ -22,7 +24,7 @@ class HealthController {
 }
 
 @Module({
-  imports: [DbModule, CommonModule, PrintModule, AuthModule, OutletsModule, MenuModule, FloorModule, OrdersModule, SyncModule, RealtimeModule, CustomersModule, ReportsModule],
+  imports: [DbModule, CommonModule, PrintModule, AuthModule, OutletsModule, MenuModule, FloorModule, OrdersModule, SyncModule, RealtimeModule, CustomersModule, ReportsModule, AiModule, InsightsModule],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
 })

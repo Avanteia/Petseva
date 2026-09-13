@@ -12,6 +12,7 @@
     "db:start": "npm run db:start -w @rms/api",
     "db:migrate": "npm run db:migrate -w @rms/api",
     "db:seed": "npm run db:seed -w @rms/api",
+    "db:seed:history": "npm run db:seed:history -w @rms/api",
     "db:reset": "npm run db:reset -w @rms/api",
     "dev": "npm run build:shared && concurrently -k -n api,pos -c blue,green \"npm run dev -w @rms/api\" \"npm run dev -w @rms/pos\"",
     "dev:api": "npm run dev -w @rms/api",

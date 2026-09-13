@@ -50,6 +50,7 @@ export const PERMISSIONS = [
   'reports.read',
   'audit.read',
   'kds.view',
+  'insights.read',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

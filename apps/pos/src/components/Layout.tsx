@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { BarChart3, CloudOff, LayoutGrid, ListOrdered, LogOut, RefreshCw, Settings, ShieldCheck, Utensils, Wifi } from 'lucide-react';
+import { BarChart3, CloudOff, LayoutGrid, ListOrdered, LogOut, RefreshCw, Settings, ShieldCheck, Sparkles, Utensils, Wifi } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { cache } from '../lib/db';
@@ -15,6 +15,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     { to: '/', icon: LayoutGrid, label: 'Tables', show: true },
     { to: '/orders', icon: ListOrdered, label: 'Orders', show: true },
     { to: '/reports', icon: BarChart3, label: 'Today', show: can('reports.read') },
+    { to: '/admin/insights', icon: Sparkles, label: 'Insights', show: can('insights.read') },
     { to: '/admin/menu', icon: Utensils, label: 'Menu', show: can('menu.write') },
     { to: '/admin/tables', icon: LayoutGrid, label: 'Floor', show: can('tables.write') },
     { to: '/admin/settings', icon: Settings, label: 'Settings', show: can('settings.write') },
