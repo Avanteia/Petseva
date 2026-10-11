@@ -138,6 +138,15 @@ export class MenuService {
     return row;
   }
 
+  /** Sets the item's cost price (paise) for margin-aware pricing features. Null clears it back to "unknown margin". */
+  async patchItemCostPrice(actor: Actor, id: string, costPrice: number | null) {
+    if (costPrice !== null && (!Number.isInteger(costPrice) || costPrice < 0)) throw new BadRequestException('costPrice must be a non-negative integer (paise) or null');
+    const [row] = await this.db.update(menuItems).set({ costPrice, updatedAt: new Date() }).where(and(eq(menuItems.id, id), eq(menuItems.outletId, actor.outletId))).returning();
+    if (!row) throw new NotFoundException('Item not found');
+    this.events.publish({ type: 'menu.updated', outletId: actor.outletId });
+    return row;
+  }
+
   async deleteItem(actor: Actor, id: string) {
     await this.db.update(menuItems).set({ active: false, updatedAt: new Date() }).where(and(eq(menuItems.id, id), eq(menuItems.outletId, actor.outletId)));
     this.events.publish({ type: 'menu.updated', outletId: actor.outletId });
@@ -278,6 +287,9 @@ export class MenuController {
   }
   @Patch('items/:id/flags') @RequirePerms('menu.write') flags(@CurrentUser() u: Actor, @Param('id') id: string, @Body() b: any) {
     return this.svc.patchItemFlags(u, id, { available: b.available, stockOut: b.stockOut });
+  }
+  @Patch('items/:id/cost-price') @RequirePerms('menu.write') costPrice(@CurrentUser() u: Actor, @Param('id') id: string, @Body() b: { costPrice: number | null }) {
+    return this.svc.patchItemCostPrice(u, id, b.costPrice);
   }
   @Delete('items/:id') @RequirePerms('menu.write') del(@CurrentUser() u: Actor, @Param('id') id: string) {
     return this.svc.deleteItem(u, id);

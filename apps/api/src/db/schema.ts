@@ -147,6 +147,8 @@ export const menuItems = pgTable(
     price: integer('price').notNull(),
     /** separate online-channel price; null = same as price */
     onlinePrice: integer('online_price'),
+    /** paise; null = unknown/not set yet — pricing features must treat this as "unknown margin", never as zero */
+    costPrice: integer('cost_price'),
     taxSlabId: uuid('tax_slab_id').references(() => taxSlabs.id),
     packagingCharge: integer('packaging_charge').default(0).notNull(),
     station: text('station'),
@@ -207,6 +209,105 @@ export const itemAddonGroups = pgTable(
       .notNull(),
   },
   (t) => [primaryKey({ columns: [t.itemId, t.groupId] })],
+);
+
+// ---------------------------------------------------------------- inventory & purchasing
+export const rawMaterials = pgTable(
+  'raw_materials',
+  {
+    id: id(),
+    outletId: uuid('outlet_id')
+      .references(() => outlets.id)
+      .notNull(),
+    name: text('name').notNull(),
+    unit: text('unit').notNull(), // KG | G | L | ML | PCS
+    reorderLevel: integer('reorder_level').default(0).notNull(),
+    reorderQty: integer('reorder_qty').default(0).notNull(),
+    /** denormalized running balance, kept in sync by stockMovements (never written directly outside that flow) */
+    currentStock: integer('current_stock').default(0).notNull(),
+    /** paise per unit, updated on each PURCHASE_IN as a weighted average */
+    avgCostPrice: integer('avg_cost_price').default(0).notNull(),
+    preferredVendorId: uuid('preferred_vendor_id'),
+    active: boolean('active').default(true).notNull(),
+  },
+  (t) => [index('raw_materials_outlet_idx').on(t.outletId)],
+);
+
+/** Menu item → raw material BOM. No separate "recipe" header row — mirrors how variations/addons hang directly off menuItems. */
+export const recipeItems = pgTable(
+  'recipe_items',
+  {
+    id: id(),
+    outletId: uuid('outlet_id')
+      .references(() => outlets.id)
+      .notNull(),
+    menuItemId: uuid('menu_item_id')
+      .references(() => menuItems.id, { onDelete: 'cascade' })
+      .notNull(),
+    rawMaterialId: uuid('raw_material_id')
+      .references(() => rawMaterials.id)
+      .notNull(),
+    /** qty of the raw material (in its base unit) consumed per one unit of the menu item sold */
+    qtyPerUnit: integer('qty_per_unit').notNull(),
+  },
+  (t) => [index('recipe_items_menu_item_idx').on(t.menuItemId)],
+);
+
+export const vendors = pgTable('vendors', {
+  id: id(),
+  outletId: uuid('outlet_id')
+    .references(() => outlets.id)
+    .notNull(),
+  name: text('name').notNull(),
+  phone: text('phone'),
+  email: text('email'),
+  address: text('address'),
+  active: boolean('active').default(true).notNull(),
+});
+
+export type PurchaseOrderItemSnapshot = { rawMaterialId: string; name: string; unit: string; qty: number; unitCost: number };
+
+export const purchaseOrders = pgTable(
+  'purchase_orders',
+  {
+    id: id(),
+    outletId: uuid('outlet_id')
+      .references(() => outlets.id)
+      .notNull(),
+    vendorId: uuid('vendor_id').references(() => vendors.id),
+    poNumber: text('po_number').notNull(),
+    status: text('status').default('DRAFT').notNull(), // DRAFT | SENT | PARTIALLY_RECEIVED | RECEIVED | CANCELLED
+    /** snapshot at creation time, same pattern as kots.items */
+    items: jsonb('items').$type<PurchaseOrderItemSnapshot[]>().default([]).notNull(),
+    totalCost: integer('total_cost').default(0).notNull(),
+    createdBy: uuid('created_by').references(() => users.id),
+    createdAt: createdAt(),
+    expectedAt: ts('expected_at'),
+    receivedAt: ts('received_at'),
+  },
+  (t) => [uniqueIndex('purchase_orders_outlet_number_idx').on(t.outletId, t.poNumber)],
+);
+
+/** Append-only ledger; rawMaterials.currentStock is a denormalized running sum of these. */
+export const stockMovements = pgTable(
+  'stock_movements',
+  {
+    id: id(),
+    outletId: uuid('outlet_id')
+      .references(() => outlets.id)
+      .notNull(),
+    rawMaterialId: uuid('raw_material_id')
+      .references(() => rawMaterials.id)
+      .notNull(),
+    type: text('type').notNull(), // PURCHASE_IN | SALE_DEDUCT | WASTAGE | ADJUSTMENT | TRANSFER
+    qtyDelta: integer('qty_delta').notNull(), // signed — positive for stock in, negative for stock out
+    refType: text('ref_type'), // ORDER | PURCHASE_ORDER | MANUAL
+    refId: uuid('ref_id'),
+    note: text('note'),
+    createdBy: uuid('created_by').references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [index('stock_movements_outlet_material_created_idx').on(t.outletId, t.rawMaterialId, t.createdAt)],
 );
 
 // ---------------------------------------------------------------- customers
@@ -516,6 +617,14 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   bill: one(bills, { fields: [payments.billId], references: [bills.id] }),
   order: one(orders, { fields: [payments.orderId], references: [orders.id] }),
 }));
+export const rawMaterialsRelations = relations(rawMaterials, ({ many }) => ({ recipeItems: many(recipeItems), stockMovements: many(stockMovements) }));
+export const recipeItemsRelations = relations(recipeItems, ({ one }) => ({
+  menuItem: one(menuItems, { fields: [recipeItems.menuItemId], references: [menuItems.id] }),
+  rawMaterial: one(rawMaterials, { fields: [recipeItems.rawMaterialId], references: [rawMaterials.id] }),
+}));
+export const vendorsRelations = relations(vendors, ({ many }) => ({ purchaseOrders: many(purchaseOrders) }));
+export const purchaseOrdersRelations = relations(purchaseOrders, ({ one }) => ({ vendor: one(vendors, { fields: [purchaseOrders.vendorId], references: [vendors.id] }) }));
+export const stockMovementsRelations = relations(stockMovements, ({ one }) => ({ rawMaterial: one(rawMaterials, { fields: [stockMovements.rawMaterialId], references: [rawMaterials.id] }) }));
 
 export const schema = {
   brands,
@@ -540,6 +649,11 @@ export const schema = {
   counters,
   syncOps,
   auditLogs,
+  rawMaterials,
+  recipeItems,
+  vendors,
+  purchaseOrders,
+  stockMovements,
   outletsRelations,
   areasRelations,
   tablesRelations,
@@ -554,6 +668,11 @@ export const schema = {
   kotsRelations,
   billsRelations,
   paymentsRelations,
+  rawMaterialsRelations,
+  recipeItemsRelations,
+  vendorsRelations,
+  purchaseOrdersRelations,
+  stockMovementsRelations,
 };
 // keep sql import referenced for future raw defaults
 void sql;

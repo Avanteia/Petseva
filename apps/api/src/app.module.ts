@@ -7,11 +7,15 @@ import { CommonModule } from './common/common.module';
 import { DbModule } from './common/db.module';
 import { CustomersModule } from './customers/customers.module';
 import { FloorModule } from './floor/floor.module';
+import { ForecastingModule } from './forecasting/forecasting.module';
 import { InsightsModule } from './insights/insights.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { MenuModule } from './menu/menu.module';
 import { OrdersModule } from './orders/orders.module';
 import { OutletsModule } from './outlets/outlets.module';
+import { PricingModule } from './pricing/pricing.module';
 import { PrintModule } from './print/print.module';
+import { PurchasingModule } from './purchasing/purchasing.module';
 import { RealtimeModule } from './realtime/realtime.gateway';
 import { ReportsModule } from './reports/reports.module';
 import { SyncModule } from './sync/sync.module';
@@ -24,7 +28,26 @@ class HealthController {
 }
 
 @Module({
-  imports: [DbModule, CommonModule, PrintModule, AuthModule, OutletsModule, MenuModule, FloorModule, OrdersModule, SyncModule, RealtimeModule, CustomersModule, ReportsModule, AiModule, InsightsModule],
+  imports: [
+    DbModule,
+    CommonModule,
+    PrintModule,
+    AuthModule,
+    OutletsModule,
+    MenuModule,
+    FloorModule,
+    OrdersModule,
+    SyncModule,
+    RealtimeModule,
+    CustomersModule,
+    ReportsModule,
+    AiModule,
+    InsightsModule,
+    InventoryModule,
+    PurchasingModule,
+    ForecastingModule,
+    PricingModule,
+  ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
 })

@@ -10,7 +10,8 @@ export type DomainEvent =
   | { type: 'bill.created'; outletId: string; billId: string; orderId: string }
   | { type: 'bill.paid'; outletId: string; billId: string; orderId: string }
   | { type: 'menu.updated'; outletId: string }
-  | { type: 'floor.updated'; outletId: string };
+  | { type: 'floor.updated'; outletId: string }
+  | { type: 'stock.low'; outletId: string; rawMaterialId: string; name: string; currentStock: number; reorderLevel: number };
 
 /**
  * In-process event bus. When REDIS_URL is configured, a Redis pub/sub bridge can be plugged in here

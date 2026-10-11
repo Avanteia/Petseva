@@ -27,7 +27,7 @@ export default function AdminMenu() {
   const save = async () => {
     if (!edit) return;
     try {
-      await api('POST', '/menu/items', {
+      const row = await api('POST', '/menu/items', {
         id: edit.id,
         categoryId: edit.categoryId,
         name: edit.name,
@@ -39,6 +39,8 @@ export default function AdminMenu() {
         variations: edit.variations?.map((v) => ({ name: v.name, price: v.price, isDefault: v.isDefault })),
         addonGroupIds: edit.addonGroupIds,
       });
+      // Cost price feeds AI margin/pricing features (see AdminPricing) — saved separately since it's not part of the core item shape.
+      await api('PATCH', `/menu/items/${row.id}/cost-price`, { costPrice: edit.costPrice ?? null });
       await refreshMenu();
       setEdit(null);
       toast('Saved', 'ok');
@@ -46,6 +48,7 @@ export default function AdminMenu() {
       toast(e.message, 'err');
     }
   };
+  const marginPct = (i: Pick<MenuItem, 'price' | 'costPrice'>) => (i.costPrice != null && i.price > 0 ? Math.round(((i.price - i.costPrice) / i.price) * 100) : null);
   const exportCsv = async () => {
     const { token } = (await import('../../store/auth')).useAuth.getState();
     const res = await fetch('/api/menu/export.csv', { headers: { authorization: `Bearer ${token}` } });
@@ -87,6 +90,7 @@ export default function AdminMenu() {
               <th className="px-3 py-2">Category</th>
               <th className="px-3 py-2">Station</th>
               <th className="px-3 py-2 text-right">Price</th>
+              <th className="px-3 py-2 text-right">Margin</th>
               <th className="px-3 py-2">GST</th>
               <th className="px-3 py-2">Available</th>
               <th className="px-3 py-2">In stock</th>
@@ -104,6 +108,9 @@ export default function AdminMenu() {
                 <td className="px-3 py-1.5 text-slate-400">{i.category}</td>
                 <td className="px-3 py-1.5 text-slate-400">{i.station}</td>
                 <td className="px-3 py-1.5 text-right">{inr(i.price)}</td>
+                <td className="px-3 py-1.5 text-right">
+                  {marginPct(i) == null ? <span className="text-slate-600">—</span> : <Badge tone={marginPct(i)! >= 40 ? 'green' : marginPct(i)! >= 20 ? 'amber' : 'red'}>{marginPct(i)}%</Badge>}
+                </td>
                 <td className="px-3 py-1.5 text-slate-400">{i.taxRateBps / 100}%</td>
                 <td className="px-3 py-1.5">
                   <Toggle on={i.available} onChange={(v) => flag(i, { available: v })} />
@@ -127,6 +134,10 @@ export default function AdminMenu() {
             <label>Category<select className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900 px-2" value={edit.categoryId} onChange={(e) => setEdit({ ...edit, categoryId: e.target.value })}>{menu.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             <label>Short code<Input value={edit.shortCode ?? ''} onChange={(e) => setEdit({ ...edit, shortCode: e.target.value })} /></label>
             <label>Price (₹)<Input type="number" value={(edit.price ?? 0) / 100} onChange={(e) => setEdit({ ...edit, price: Math.round(Number(e.target.value) * 100) })} /></label>
+            <label>
+              Cost price (₹) <span className="text-xs text-slate-500">for AI margin/pricing</span>
+              <Input type="number" value={edit.costPrice == null ? '' : edit.costPrice / 100} placeholder="unknown" onChange={(e) => setEdit({ ...edit, costPrice: e.target.value === '' ? null : Math.round(Number(e.target.value) * 100) })} />
+            </label>
             <label>Packaging (₹)<Input type="number" value={(edit.packagingCharge ?? 0) / 100} onChange={(e) => setEdit({ ...edit, packagingCharge: Math.round(Number(e.target.value) * 100) })} /></label>
             <label>Food type<select className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900 px-2" value={edit.foodType} onChange={(e) => setEdit({ ...edit, foodType: e.target.value as any })}><option value="VEG">Veg</option><option value="NON_VEG">Non-veg</option><option value="EGG">Egg</option></select></label>
             <label>GST slab<select className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900 px-2" value={edit.taxSlabId ?? ''} onChange={(e) => setEdit({ ...edit, taxSlabId: e.target.value || null })}><option value="">None</option>{menu.taxSlabs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>

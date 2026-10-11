@@ -40,4 +40,9 @@ export class NumberingService {
     const n = await this.next(tx, outletId, 'bill');
     return `${prefix}-${String(n).padStart(6, '0')}`;
   }
+
+  async poNumber(tx: Tx | Db, outletId: string, prefix = 'PO'): Promise<string> {
+    const n = await this.next(tx, outletId, 'purchase_order');
+    return `${prefix}-${String(n).padStart(5, '0')}`;
+  }
 }

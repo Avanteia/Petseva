@@ -10,6 +10,7 @@ import { NumberingService } from '../common/numbering.service';
 import { Db, Tx } from '../db/client';
 import { bills, customers, orderItems, orders, payments, users } from '../db/schema';
 import { FloorService } from '../floor/floor.module';
+import { InventoryService, LowStockAlert } from '../inventory/inventory.service';
 import { OrdersService } from '../orders/orders.service';
 import { OutletsService } from '../outlets/outlets.module';
 import { PrintService } from '../print/print.service';
@@ -58,6 +59,7 @@ export class BillingService {
     private readonly outlets: OutletsService,
     private readonly ordersSvc: OrdersService,
     private readonly print: PrintService,
+    private readonly inventory: InventoryService,
   ) {}
 
   async get(outletId: string, billId: string) {
@@ -145,6 +147,7 @@ export class BillingService {
     for (const p of inputs) if (!Number.isInteger(p.amount) || p.amount <= 0) throw new BadRequestException('Payment amount must be a positive integer (paise)');
     let settledOrderId: string | null = null;
     let change = 0;
+    let lowStock: LowStockAlert[] = [];
     await this.db.transaction(async (tx) => {
       const [b] = await tx.select().from(bills).where(and(eq(bills.id, billId), eq(bills.outletId, actor.outletId))).for('update');
       if (!b) throw new NotFoundException('Bill not found');
@@ -178,6 +181,8 @@ export class BillingService {
             .update(customers)
             .set({ visits: sql`${customers.visits} + 1`, totalSpend: sql`${customers.totalSpend} + ${b.grandTotal}`, lastVisitAt: new Date() })
             .where(eq(customers.id, o.customerId));
+        const soldItems = await tx.select({ itemId: orderItems.itemId, qty: orderItems.qty }).from(orderItems).where(and(eq(orderItems.orderId, b.orderId), sql`${orderItems.status} <> 'VOIDED'`));
+        lowStock = await this.inventory.deductForSale(tx, actor.outletId, b.orderId, soldItems);
         settledOrderId = b.orderId;
       } else {
         await tx.update(bills).set({ paidTotal }).where(eq(bills.id, billId));
@@ -188,6 +193,7 @@ export class BillingService {
       const order = await this.ordersSvc.get(actor.outletId, settledOrderId);
       this.events.publish({ type: 'order.updated', outletId: actor.outletId, orderId: settledOrderId, order });
       this.events.publish({ type: 'bill.paid', outletId: actor.outletId, billId, orderId: settledOrderId });
+      for (const rm of lowStock) this.events.publish({ type: 'stock.low', outletId: actor.outletId, rawMaterialId: rm.id, name: rm.name, currentStock: rm.currentStock, reorderLevel: rm.reorderLevel });
     }
     return { bill, change, due: Math.max(0, bill.grandTotal - bill.paidTotal) };
   }

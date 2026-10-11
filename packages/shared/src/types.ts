@@ -51,6 +51,11 @@ export const PERMISSIONS = [
   'audit.read',
   'kds.view',
   'insights.read',
+  'inventory.read',
+  'inventory.write',
+  'purchase.read',
+  'purchase.write',
+  'pricing.read',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

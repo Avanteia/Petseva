@@ -48,6 +48,7 @@ export interface MenuItem {
   description?: string | null;
   foodType: 'VEG' | 'NON_VEG' | 'EGG';
   price: number;
+  costPrice?: number | null;
   taxSlabId?: string | null;
   taxRateBps: number;
   packagingCharge: number;
